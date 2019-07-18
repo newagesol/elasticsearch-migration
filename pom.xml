@@ -5,14 +5,14 @@
         <artifactId>oss-parent</artifactId>
         <version>7</version>
     </parent>
-    <groupId>com.hubrick.lib</groupId>
+    <groupId>com.github.newagesol</groupId>
     <artifactId>elasticsearch-migration</artifactId>
-    <version>1.0.6-SNAPSHOT</version>
+    <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <inceptionYear>2018</inceptionYear>
+    <inceptionYear>2019</inceptionYear>
 
     <name>Elasticsearch schema migration library</name>
-    <url>https://github.com/hubrick/elasticsearch-migration</url>
+    <url>https://github.com/newagesol/elasticsearch-migration</url>
     <description>A flyway inspired Elasticsearch schema migration library</description>
 
     <licenses>
@@ -25,8 +25,8 @@
     <developers>
         <developer>
             <id>1</id>
-            <name>Emir Dizdarevic</name>
-            <email>oss@hubrick.com</email>
+            <name>Oleg Dubynskiy</name>
+            <email>odubynskiy@newagesol.com</email>
         </developer>
     </developers>
 
@@ -329,28 +329,6 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>2.5</version>
-                <configuration>
-                    <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
-                    <properties>
-                        <owner>Etaia AS</owner>
-                        <email>oss@hubrick.com</email>
-                    </properties>
-                    <includes>
-                        <include>**/*.java</include>
-                    </includes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
                 <configuration>
@@ -454,8 +432,8 @@
     </distributionManagement>
 
     <scm>
-        <connection>scm:git:git://github.com/hubrick/elasticsearch-migration.git</connection>
-        <developerConnection>scm:git:git@github.com:hubrick/elasticsearch-migration.git</developerConnection>
-        <url>http://github.com/hubrick/elasticsearch-migration.git</url>
+        <connection>scm:git:git://github.com/newagesol/elasticsearch-migration.git</connection>
+        <developerConnection>scm:git:git@github.com:newagesol/elasticsearch-migration.git</developerConnection>
+        <url>http://github.com/newagesol/elasticsearch-migration.git</url>
     </scm>
 </project>
