@@ -16,35 +16,19 @@
 package com.hubrick.lib.elasticsearchmigration.service.impl;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import com.google.common.io.Resources;
 import com.hubrick.lib.elasticsearchmigration.exception.MigrationFailedException;
 import com.hubrick.lib.elasticsearchmigration.exception.MigrationLockedException;
 import com.hubrick.lib.elasticsearchmigration.exception.PreviousMigrationFailedException;
-import com.hubrick.lib.elasticsearchmigration.model.es.LockEntry;
-import com.hubrick.lib.elasticsearchmigration.model.es.LockEntryMeta;
-import com.hubrick.lib.elasticsearchmigration.model.es.MigrationEntry;
-import com.hubrick.lib.elasticsearchmigration.model.es.MigrationEntryMeta;
-import com.hubrick.lib.elasticsearchmigration.model.es.State;
-import com.hubrick.lib.elasticsearchmigration.model.migration.CreateIndexMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.IndexDocumentMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.Migration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationMeta;
-import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationSet;
-import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationSetEntry;
-import com.hubrick.lib.elasticsearchmigration.model.migration.OpType;
-import com.hubrick.lib.elasticsearchmigration.model.migration.UpdateDocumentMigration;
+import com.hubrick.lib.elasticsearchmigration.model.es.*;
+import com.hubrick.lib.elasticsearchmigration.model.migration.*;
 import com.hubrick.lib.elasticsearchmigration.service.MigrationClient;
 import com.jayway.jsonpath.JsonPath;
 import lombok.NonNull;
@@ -73,13 +57,9 @@ import org.elasticsearch.search.sort.SortOrder;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -139,6 +119,18 @@ public class DefaultMigrationClient implements MigrationClient {
 
     private ObjectMapper createObjectMapper() {
         final ObjectMapper objectMapper = new ObjectMapper();
+        final JavaTimeModule javaTimeModule = new JavaTimeModule();
+
+        javaTimeModule.addSerializer(Instant.class, new JsonSerializer<Instant>() {
+            @Override
+            public void serialize(Instant instant, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+                DateTimeFormatter formatter = DateTimeFormatter
+                        .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
+                        .withZone(ZoneOffset.UTC);
+                String serializedInstant = formatter.format(instant);
+                jsonGenerator.writeString(serializedInstant);
+            }
+        });
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         objectMapper.configure(DeserializationFeature.READ_ENUMS_USING_TO_STRING, true);
         objectMapper.configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
@@ -149,7 +141,7 @@ public class DefaultMigrationClient implements MigrationClient {
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
         objectMapper.registerModule(new Jdk8Module());
-        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.registerModule(javaTimeModule);
 
         return objectMapper;
     }
