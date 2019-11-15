@@ -44,13 +44,13 @@ public class ElasticsearchMigrationIntegrationTest extends AbstractESTest {
 
         elasticsearchMigration.migrate();
 
-        final MigrationEntry migrationEntry100 = getFromIndex(MigrationEntryMeta.INDEX, MigrationEntryMeta.TYPE, "test-1.0.0", MigrationEntry.class);
-        final MigrationEntry migrationEntry110 = getFromIndex(MigrationEntryMeta.INDEX, MigrationEntryMeta.TYPE, "test-1.1.0", MigrationEntry.class);
-        final MigrationEntry migrationEntry111 = getFromIndex(MigrationEntryMeta.INDEX, MigrationEntryMeta.TYPE, "test-1.1.1", MigrationEntry.class);
+        final MigrationEntry migrationEntry100 = getFromIndex(MigrationEntryMeta.INDEX, MigrationEntryMeta.TYPE, "test-1", MigrationEntry.class);
+        final MigrationEntry migrationEntry110 = getFromIndex(MigrationEntryMeta.INDEX, MigrationEntryMeta.TYPE, "test-2", MigrationEntry.class);
+        final MigrationEntry migrationEntry111 = getFromIndex(MigrationEntryMeta.INDEX, MigrationEntryMeta.TYPE, "test-3", MigrationEntry.class);
 
         final Instant now = Instant.now();
         assertThat(migrationEntry100.getIdentifier(), is("test"));
-        assertThat(migrationEntry100.getVersion(), is("1.0.0"));
+        assertThat(migrationEntry100.getVersion(), is("1"));
         assertThat(migrationEntry100.getName(), is("migration_one"));
         assertThat(migrationEntry100.getCreated(), lessThanOrEqualTo(now));
         assertThat(migrationEntry100.getFailureMessage(), is(""));
@@ -61,7 +61,7 @@ public class ElasticsearchMigrationIntegrationTest extends AbstractESTest {
         ));
 
         assertThat(migrationEntry110.getIdentifier(), is("test"));
-        assertThat(migrationEntry110.getVersion(), is("1.1.0"));
+        assertThat(migrationEntry110.getVersion(), is("2"));
         assertThat(migrationEntry110.getName(), is("migration_two"));
         assertThat(migrationEntry110.getCreated(), lessThanOrEqualTo(now));
         assertThat(migrationEntry110.getFailureMessage(), is(""));
@@ -72,7 +72,7 @@ public class ElasticsearchMigrationIntegrationTest extends AbstractESTest {
         ));
 
         assertThat(migrationEntry111.getIdentifier(), is("test"));
-        assertThat(migrationEntry111.getVersion(), is("1.1.1"));
+        assertThat(migrationEntry111.getVersion(), is("3"));
         assertThat(migrationEntry111.getName(), is("migration_three"));
         assertThat(migrationEntry111.getCreated(), lessThanOrEqualTo(now));
         assertThat(migrationEntry111.getFailureMessage(), is(""));

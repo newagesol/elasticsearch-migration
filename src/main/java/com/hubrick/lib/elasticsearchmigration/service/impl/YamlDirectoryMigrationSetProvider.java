@@ -60,7 +60,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class YamlDirectoryMigrationSetProvider implements MigrationSetProvider {
 
-    private static final Pattern MIGRATION_FILE_PATTERN = Pattern.compile("^V([0-9]{1}(?:_{1}[0-9]+)*)__([a-zA-Z0-9]{1}[a-zA-Z0-9_-]*)\\.yaml$");
+    private static final Pattern MIGRATION_FILE_PATTERN = Pattern.compile("^V([0-9]+)__([a-zA-Z0-9]{1}[a-zA-Z0-9_-]*)\\.yaml$");
 
     private final Parser yamlParser;
 
@@ -88,7 +88,7 @@ public class YamlDirectoryMigrationSetProvider implements MigrationSetProvider {
                             checksumedMigrationFile.getMigrationFile().getMigrations().stream().map(this::convertToMigration).collect(Collectors.toList()),
                             new MigrationMeta(
                                     checksumedMigrationFile.getSha256Checksums(),
-                                    matcher.group(1).replaceAll("_", "."),
+                                    matcher.group(1),
                                     matcher.group(2)
                             )
                     )
