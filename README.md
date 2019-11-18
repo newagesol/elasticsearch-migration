@@ -69,33 +69,6 @@ The entry won't be removed and the changes applied to this point will stay in th
 }
 ```
 
-### Migration lock index (elasticsearch_migration_lock)
-Used to create a pessimistic lock during the migration so only one client makes changes at a time. 
-In case the migration is aborted for any reason the lock won't be removed and has to be removed manually.
-
-```javascript
-{
-    "settings": {
-        "number_of_shards": 3
-    },
-    "mappings": {
-        "lock": {
-            "dynamic": "strict",
-            "_source": {
-                "enabled": true
-            },
-            "properties": {
-                "created": {
-                    "type": "date",
-                    "format": "date_time",
-                    "index": true
-                }
-            }
-        }
-    }
-}
-```
-
 ## YAML changesets
 The changesets are defined with versioned yaml files (V{version}__{name}.yaml)(example: V1_0_0__singularity.yaml). 
 The yaml files have to conform to this schema [YAML Schema](src/main/resources/schema/yaml/schema.json). 
@@ -211,7 +184,7 @@ migrations:
 ```
 
 ## Usage
-Each service has to define an identitifier which will identify the owner of the indexes, templates, documents etc. and locks in the ES cluster. 
+Each service has to define an identitifier which will identify the owner of the indexes, templates, documents etc. in the ES cluster. 
 The easiest way is to give the identifier the service name which ownes it.
 
 Example:
@@ -228,13 +201,8 @@ elasticsearchMigration.migrate();
 
 ## Migration from previous un-managed schema
 1. Collect all your schema in one yaml changeset.
-2. Create 'Migration version index' and 'Migration lock index' using the schemas from above or from the source tree
+2. Create 'Migration version index' using the schemas from above or from the source tree
 3. Startup your application manually. After it's started there will be one entry in the 'elasticsearch_migration_version' index. Copy this entry over to your staging/production ES cluster.
-
-## Improvements
-* In case a migration is aborted in the middle the lock stays there forever. Unlock it after a TTL.
-* Figure out the number of shards and make use of wait_for_active_shards for maxiumum consistency
-* Add more functionality
 
 ## Limitations
 * The tool does not roll back the database upon migration failure. You're expected to manually restore backup.

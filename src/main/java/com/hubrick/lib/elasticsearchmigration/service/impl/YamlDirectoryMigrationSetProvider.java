@@ -1,12 +1,12 @@
 /**
  * Copyright (C) 2018 Etaia AS (oss@hubrick.com)
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *         http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,39 +15,15 @@
  */
 package com.hubrick.lib.elasticsearchmigration.service.impl;
 
-import com.hubrick.lib.elasticsearchmigration.model.input.BaseMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.ChecksumedMigrationFile;
-import com.hubrick.lib.elasticsearchmigration.model.input.CreateIndexMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.CreateOrUpdateIndexTemplateMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.DeleteDocumentMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.DeleteIndexMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.DeleteIndexTemplateMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.IndexDocumentMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.UpdateDocumentMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.input.UpdateMappingMigrationFileEntry;
-import com.hubrick.lib.elasticsearchmigration.model.migration.CreateIndexMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.CreateOrUpdateIndexTemplateMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.DeleteDocumentMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.DeleteIndexMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.DeleteIndexTemplateMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.IndexDocumentMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.Migration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationMeta;
-import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationSet;
-import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationSetEntry;
+import com.hubrick.lib.elasticsearchmigration.model.input.*;
 import com.hubrick.lib.elasticsearchmigration.model.migration.OpType;
-import com.hubrick.lib.elasticsearchmigration.model.migration.UpdateDocumentMigration;
-import com.hubrick.lib.elasticsearchmigration.model.migration.UpdateMappingMigration;
+import com.hubrick.lib.elasticsearchmigration.model.migration.*;
 import com.hubrick.lib.elasticsearchmigration.service.MigrationSetProvider;
 import com.hubrick.lib.elasticsearchmigration.service.Parser;
 import org.reflections.Reflections;
 import org.reflections.scanners.ResourcesScanner;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -74,9 +50,14 @@ public class YamlDirectoryMigrationSetProvider implements MigrationSetProvider {
 
         final Set<String> resources = new Reflections(basePackage, new ResourcesScanner()).getResources(MIGRATION_FILE_PATTERN);
         final List<String> sortedResources = new ArrayList<>(resources);
-        sortedResources.sort(String::compareTo);
+        sortedResources.sort(Comparator.comparing(res -> {
+            int startIndex = res.indexOf("V") + 1;
+            int endIndex = res.indexOf("__");
+            String versionString = res.substring(startIndex, endIndex);
+            return Integer.parseInt(versionString);
+        }));
 
-        final List<MigrationSetEntry> migrationSetEntries = new LinkedList<>();
+        final Set<MigrationSetEntry> migrationSetEntries = new HashSet<>();
         for (String resource : sortedResources) {
             final String resourceName = resource.lastIndexOf("/") != -1 ? resource.substring(resource.lastIndexOf("/") + 1) : resource;
             final Matcher matcher = MIGRATION_FILE_PATTERN.matcher(resourceName);
@@ -88,14 +69,12 @@ public class YamlDirectoryMigrationSetProvider implements MigrationSetProvider {
                             checksumedMigrationFile.getMigrationFile().getMigrations().stream().map(this::convertToMigration).collect(Collectors.toList()),
                             new MigrationMeta(
                                     checksumedMigrationFile.getSha256Checksums(),
-                                    matcher.group(1),
+                                    Integer.parseInt(matcher.group(1)),
                                     matcher.group(2)
                             )
                     )
             );
         }
-
-        migrationSetEntries.sort(Comparator.comparing(o -> o.getMigrationMeta().getVersion()));
         return new MigrationSet(migrationSetEntries);
     }
 

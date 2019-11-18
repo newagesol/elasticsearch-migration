@@ -1,12 +1,12 @@
 /**
  * Copyright (C) 2018 Etaia AS (oss@hubrick.com)
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *         http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,9 +25,10 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.*;
 import com.google.common.io.Resources;
 import com.hubrick.lib.elasticsearchmigration.exception.MigrationFailedException;
-import com.hubrick.lib.elasticsearchmigration.exception.MigrationLockedException;
 import com.hubrick.lib.elasticsearchmigration.exception.PreviousMigrationFailedException;
-import com.hubrick.lib.elasticsearchmigration.model.es.*;
+import com.hubrick.lib.elasticsearchmigration.model.es.MigrationEntry;
+import com.hubrick.lib.elasticsearchmigration.model.es.MigrationEntryMeta;
+import com.hubrick.lib.elasticsearchmigration.model.es.State;
 import com.hubrick.lib.elasticsearchmigration.model.migration.*;
 import com.hubrick.lib.elasticsearchmigration.service.MigrationClient;
 import com.jayway.jsonpath.JsonPath;
@@ -38,22 +39,17 @@ import org.apache.http.Header;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.sort.SortOrder;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -72,12 +68,10 @@ public class DefaultMigrationClient implements MigrationClient {
 
     private static final String WAIT_FOR_ACTIVE_SHARDS_FIELD = "wait_for_active_shards";
 
-    static final String ELASTICSEARCH_MIGRATION_LOCK_INDEX;
     static final String ELASTICSEARCH_MIGRATION_VERSION_INDEX;
 
     static {
         try {
-            ELASTICSEARCH_MIGRATION_LOCK_INDEX = Resources.toString(Resources.getResource(DefaultMigrationClient.class, "/schema/es/elasticsearch_migration_lock.json"), Charsets.UTF_8);
             ELASTICSEARCH_MIGRATION_VERSION_INDEX = Resources.toString(Resources.getResource(DefaultMigrationClient.class, "/schema/es/elasticsearch_migration_version.json"), Charsets.UTF_8);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load index files", e);
@@ -112,7 +106,6 @@ public class DefaultMigrationClient implements MigrationClient {
         if (!init) {
             init = true;
             numberOfNodesInCluster = getNumberOfNodesInCluster();
-            performRequestIgnoreExistingExceptions(new CreateIndexMigration(LockEntryMeta.INDEX, ELASTICSEARCH_MIGRATION_LOCK_INDEX));
             performRequestIgnoreExistingExceptions(new CreateIndexMigration(MigrationEntryMeta.INDEX, ELASTICSEARCH_MIGRATION_VERSION_INDEX));
         }
     }
@@ -148,53 +141,34 @@ public class DefaultMigrationClient implements MigrationClient {
 
     @Override
     public void applyMigrationSet(final MigrationSet migrationSet) {
-        try {
-            init();
+        init();
 
-            performUnderGlobalLock(() -> {
-                final List<MigrationSetEntry> orderedMigrationSetEntries = Lists.newArrayList(migrationSet.getMigrations());
-                orderedMigrationSetEntries.sort(Comparator.comparing(o -> o.getMigrationMeta().getVersion()));
+        final List<MigrationSetEntry> orderedMigrationSetEntries = Lists.newArrayList(migrationSet.getMigrations());
+        orderedMigrationSetEntries.sort(Comparator.comparingInt(o -> o.getMigrationMeta().getVersion()));
 
-                final List<MigrationEntry> allMigrations = getAllMigrations();
-                log.info("Running checks...");
-                checkAllPreviousMigrationsAppliedSuccessfully(allMigrations);
-                checkForMetadataConflicts(allMigrations, orderedMigrationSetEntries.stream().map(e -> e.getMigrationMeta()).collect(Collectors.toList()));
-                log.info("Checks done");
+        final List<MigrationEntry> allMigrations = getAllMigrations();
+        log.info("Running checks...");
+        checkAllPreviousMigrationsAppliedSuccessfully(allMigrations);
+        checkForMetadataConflicts(allMigrations, orderedMigrationSetEntries.stream().map(MigrationSetEntry::getMigrationMeta).collect(Collectors.toList()));
+        log.info("Checks done");
 
-                final Set<String> appliedVersions = allMigrations.stream().map(e -> e.getVersion()).collect(Collectors.toSet());
-                for (MigrationSetEntry migrationSetEntry : orderedMigrationSetEntries) {
-                    log.info("Applying migration version " + migrationSetEntry.getMigrationMeta().getVersion());
-                    if (appliedVersions.contains(migrationSetEntry.getMigrationMeta().getVersion())) {
-                        log.info("Skipping migration. Already applied.");
-                    } else {
-                        try {
-                            insertNewMigrationEntry(migrationSetEntry);
-                            for (Migration migration : migrationSetEntry.getMigration()) {
-                                log.info("Applying change " + migration.getClass().getSimpleName());
-                                performRequest(migration);
-                            }
-                            updateMigrationEntry(migrationSetEntry.getMigrationMeta().getVersion(), State.SUCCESS, "");
-                        } catch (Exception e) {
-                            updateMigrationEntry(migrationSetEntry.getMigrationMeta().getVersion(), State.FAILURE, e.getCause().getMessage());
-                            throw new MigrationFailedException("Performing migration version " + migrationSetEntry.getMigrationMeta().getVersion() + " failed. Message: " + e.getCause().getMessage(), e);
-                        }
-                    }
-                }
-
-                return null;
-            });
-        } catch (MigrationLockedException e) {
-            if (currentTry.getAndIncrement() < retryCount) {
-                try {
-                    log.info("Migration locked. Retrying in {}ms", backoffPeriodInMillis);
-                    Thread.sleep(backoffPeriodInMillis);
-                    applyMigrationSet(migrationSet);
-                } catch (InterruptedException e1) {
-                    // Should never happen
-                    throw new IllegalStateException("Error occured during backoff period.", e1);
-                }
+        final Set<Integer> appliedVersions = allMigrations.stream().map(MigrationEntry::getVersion).collect(Collectors.toSet());
+        for (MigrationSetEntry migrationSetEntry : orderedMigrationSetEntries) {
+            log.info("Applying migration version " + migrationSetEntry.getMigrationMeta().getVersion());
+            if (appliedVersions.contains(migrationSetEntry.getMigrationMeta().getVersion())) {
+                log.info("Skipping migration. Already applied.");
             } else {
-                throw e;
+                try {
+                    insertNewMigrationEntry(migrationSetEntry);
+                    for (Migration migration : migrationSetEntry.getMigration()) {
+                        log.info("Applying change " + migration.getClass().getSimpleName());
+                        performRequest(migration);
+                    }
+                    updateMigrationEntry(migrationSetEntry.getMigrationMeta().getVersion(), State.SUCCESS, "");
+                } catch (Exception e) {
+                    updateMigrationEntry(migrationSetEntry.getMigrationMeta().getVersion(), State.FAILURE, e.getCause().getMessage());
+                    throw new MigrationFailedException("Performing migration version " + migrationSetEntry.getMigrationMeta().getVersion() + " failed. Message: " + e.getCause().getMessage(), e);
+                }
             }
         }
     }
@@ -221,7 +195,7 @@ public class DefaultMigrationClient implements MigrationClient {
         );
     }
 
-    private void updateMigrationEntry(String version, State state, String failureMessage) {
+    private void updateMigrationEntry(int version, State state, String failureMessage) {
         final Map<String, Map<String, String>> update = ImmutableMap.of(
                 "doc",
                 ImmutableMap.of(
@@ -260,7 +234,7 @@ public class DefaultMigrationClient implements MigrationClient {
         }
 
         for (int i = 0; i < migrationEntries.size(); i++) {
-            if (!migrationEntries.get(i).getVersion().equals(migrationMetas.get(i).getVersion())) {
+            if (!(migrationEntries.get(i).getVersion() == migrationMetas.get(i).getVersion())) {
                 throw new MigrationFailedException("Version mismatch for " + migrationEntries.get(i).getName() + ". Local version: " + migrationMetas.get(i).getVersion() + ", ES version: " + migrationEntries.get(i).getVersion());
             } else if (Sets.intersection(migrationEntries.get(i).getSha256Checksum(), migrationMetas.get(i).getSha256Checksums()).isEmpty()) {
                 throw new MigrationFailedException("Checksum mismatch for " + migrationEntries.get(i).getName() + ". Local checksums: " + migrationMetas.get(i).getVersion() + ":" + migrationMetas.get(i).getSha256Checksums() + ", ES checksums: " + migrationEntries.get(i).getVersion() + ":" + migrationEntries.get(i).getSha256Checksum());
@@ -272,7 +246,7 @@ public class DefaultMigrationClient implements MigrationClient {
         // Should never happen since the changeset is ordered by version but better safe then sorry
         final Optional<MigrationEntry> lastMigrationEntry = Optional.ofNullable(Iterables.getLast(migrationEntries, null));
         for (int i = migrationEntries.size(); i < migrationMetas.size(); i++) {
-            if (lastMigrationEntry.isPresent() && lastMigrationEntry.get().getVersion().compareTo(migrationMetas.get(i).getVersion()) >= 0) {
+            if (lastMigrationEntry.isPresent() && lastMigrationEntry.get().getVersion() >= migrationMetas.get(i).getVersion()) {
                 throw new MigrationFailedException("Migration Set contains version lower or equal to the latest applied version. New version: " + migrationMetas.get(i).getVersion() + ", Latest applied version: " + lastMigrationEntry.get().getVersion());
             }
         }
@@ -302,11 +276,13 @@ public class DefaultMigrationClient implements MigrationClient {
             final SearchRequest searchRequest = new SearchRequest()
                     .indices(MigrationEntryMeta.INDEX)
                     .searchType(SearchType.DEFAULT)
-                    .source(SearchSourceBuilder.searchSource().query(queryBuilder).fetchSource(true).size(1000).sort(MigrationEntryMeta.VERSION_FIELD, SortOrder.ASC));
+                    .source(SearchSourceBuilder.searchSource().query(queryBuilder).fetchSource(true).size(1000));
 
             final SearchResponse searchResponse = restHighLevelClient.search(searchRequest);
             if (searchResponse.status() == RestStatus.OK) {
-                return transformHitsFromEs(searchResponse.getHits(), MigrationEntry.class);
+                List<MigrationEntry> entries = transformHitsFromEs(searchResponse.getHits(), MigrationEntry.class);
+                entries.sort(Comparator.comparingInt(MigrationEntry::getVersion));
+                return entries;
             } else {
                 throw new MigrationFailedException("Could not access '" + MigrationEntryMeta.INDEX + "' index. Failures: " + Arrays.asList(searchResponse.getShardFailures()));
             }
@@ -361,50 +337,6 @@ public class DefaultMigrationClient implements MigrationClient {
             return JsonPath.read(IOUtils.toString(response.getEntity().getContent(), Charsets.UTF_8), "$." + index + ".settings.index.number_of_shards");
         } catch (ResponseException e) {
             throw new MigrationFailedException("Error performing migration", e);
-        } catch (IOException e) {
-            throw new MigrationFailedException("IO Exception during migration", e);
-        }
-    }
-
-
-    private <T> T performUnderGlobalLock(Action0<T> action) {
-        if (acquireGlobalLock()) {
-            try {
-                return action.call();
-            } finally {
-                releaseGlobalLock();
-            }
-        } else {
-            throw new MigrationLockedException("Migration is locked by another process");
-        }
-    }
-
-    private boolean acquireGlobalLock() {
-        try {
-            final IndexRequest indexRequest = new IndexRequest().index(LockEntryMeta.INDEX)
-                    .create(true)
-                    .id(identifier + "-global")
-                    .type(LockEntryMeta.TYPE)
-                    .source(objectMapper.writeValueAsString(new LockEntry(Instant.now())), XContentType.JSON);
-            restHighLevelClient.index(indexRequest);
-            return true;
-        } catch (ElasticsearchStatusException e) {
-            if (e.status() == RestStatus.CONFLICT &&
-                    (e.getMessage().contains("version_conflict_engine_exception"))) {  // ES 6.x
-                return false;
-            }
-
-            throw new MigrationFailedException("Error acquiring lock", e);
-        } catch (IOException e) {
-            throw new MigrationFailedException("IO Exception during migration", e);
-        }
-    }
-
-    private boolean releaseGlobalLock() {
-        try {
-            final DeleteRequest deleteRequest = new DeleteRequest().index(LockEntryMeta.INDEX).id(identifier + "-global").type(LockEntryMeta.TYPE);
-            restHighLevelClient.delete(deleteRequest);
-            return true;
         } catch (IOException e) {
             throw new MigrationFailedException("IO Exception during migration", e);
         }
