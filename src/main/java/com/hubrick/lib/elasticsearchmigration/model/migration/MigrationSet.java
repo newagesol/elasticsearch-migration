@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NonNull;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author Emir Dizdarevic
@@ -30,5 +31,5 @@ import java.util.List;
 public class MigrationSet {
 
     @NonNull
-    private final List<MigrationSetEntry> migrations;
+    private final Set<MigrationSetEntry> migrations;
 }

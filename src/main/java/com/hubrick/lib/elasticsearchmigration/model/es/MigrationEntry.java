@@ -39,7 +39,7 @@ public class MigrationEntry {
     private String identifier;
     @NonNull
     @JsonProperty(MigrationEntryMeta.VERSION_FIELD)
-    private String version;
+    private int version;
     @NonNull
     @JsonProperty(MigrationEntryMeta.NAME_FIELD)
     private String name;
