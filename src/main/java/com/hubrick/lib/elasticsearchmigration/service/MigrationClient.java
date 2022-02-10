@@ -16,12 +16,13 @@
 package com.hubrick.lib.elasticsearchmigration.service;
 
 import com.hubrick.lib.elasticsearchmigration.model.migration.MigrationSet;
+import com.sun.xml.internal.ws.Closeable;
 
 /**
  * @author Emir Dizdarevic
  * @since 1.0.0
  */
-public interface MigrationClient {
+public interface MigrationClient extends Closeable {
 
     void applyMigrationSet(MigrationSet migrationSet);
 }

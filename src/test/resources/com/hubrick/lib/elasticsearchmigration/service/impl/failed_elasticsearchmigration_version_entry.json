@@ -1,6 +1,6 @@
 {
     "identifier": "test",
-    "version": "1.0.0",
+    "version": "1",
     "name": "singularity",
     "sha256Checksum": "10d798ee9a8265432b6b9c621adeec1eb5ae9a79a6d5c3a684e06e6021163007",
     "state": "FAILURE",

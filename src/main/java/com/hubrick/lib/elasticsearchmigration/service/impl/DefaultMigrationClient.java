@@ -24,6 +24,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Charsets;
 import com.google.common.collect.*;
 import com.google.common.io.Resources;
+import com.hubrick.lib.elasticsearchmigration.exception.MigrationException;
 import com.hubrick.lib.elasticsearchmigration.exception.MigrationFailedException;
 import com.hubrick.lib.elasticsearchmigration.exception.PreviousMigrationFailedException;
 import com.hubrick.lib.elasticsearchmigration.model.es.MigrationEntry;
@@ -169,6 +170,17 @@ public class DefaultMigrationClient implements MigrationClient {
                     updateMigrationEntry(migrationSetEntry.getMigrationMeta().getVersion(), State.FAILURE, e.getCause().getMessage());
                     throw new MigrationFailedException("Performing migration version " + migrationSetEntry.getMigrationMeta().getVersion() + " failed. Message: " + e.getCause().getMessage(), e);
                 }
+            }
+        }
+    }
+
+    public void close() {
+        if (init) {
+            init = false;
+            try {
+                restHighLevelClient.close();
+            } catch (IOException ex) {
+                throw new MigrationException("RestHighLevelClient close error", ex);
             }
         }
     }

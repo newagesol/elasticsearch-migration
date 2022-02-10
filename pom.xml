@@ -7,7 +7,7 @@
     </parent>
     <groupId>com.github.newagesol</groupId>
     <artifactId>elasticsearch-migration</artifactId>
-    <version>0.0.3-SNAPSHOT</version>
+    <version>0.0.4-SNAPSHOT</version>
     <packaging>jar</packaging>
     <inceptionYear>2019</inceptionYear>
 
@@ -36,19 +36,19 @@
         <arguments />
 
         <!-- Dependency Versions -->
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.2</junit.version>
         <hamcrest.version>1.3</hamcrest.version>
-        <slf4j.version>1.7.25</slf4j.version>
-        <guava.version>21.0</guava.version>
-        <elasticsearch.version>6.2.4</elasticsearch.version>
-        <apache-commons-lang3.version>3.7</apache-commons-lang3.version>
+        <slf4j.version>1.7.35</slf4j.version>
+        <guava.version>31.0-jre</guava.version>
+        <elasticsearch.version>6.8.23</elasticsearch.version>
+        <apache-commons-lang3.version>3.12.0</apache-commons-lang3.version>
         <apache-commons.io.version>2.4</apache-commons.io.version>
         <reflections.version>0.9.11</reflections.version>
-        <jackson.version>2.9.5</jackson.version>
-        <json-path.version>2.3.0</json-path.version>
+        <jackson.version>2.13.1</jackson.version>
+        <json-path.version>2.7.0</json-path.version>
         <rest-assured.version>2.9.0</rest-assured.version>
-        <lombok.version>1.18.0</lombok.version>
-        <log4j2.version>2.8.2</log4j2.version>
+        <lombok.version>1.18.22</lombok.version>
+        <log4j2.version>2.17.1</log4j2.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.1</maven.compiler.plugin.version>

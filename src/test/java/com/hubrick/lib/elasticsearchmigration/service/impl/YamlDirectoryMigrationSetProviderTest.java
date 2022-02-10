@@ -28,13 +28,12 @@ import com.hubrick.lib.elasticsearchmigration.model.migration.UpdateMappingMigra
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * @author Emir Dizdarevic
@@ -45,19 +44,19 @@ public class YamlDirectoryMigrationSetProviderTest {
     private YamlDirectoryMigrationSetProvider yamlDirectoryMigrationSetProvider;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         yamlDirectoryMigrationSetProvider = new YamlDirectoryMigrationSetProvider();
     }
 
     @Test
-    public void getMigrationSet() throws URISyntaxException {
+    public void getMigrationSet() {
         final MigrationSet migrationSet = yamlDirectoryMigrationSetProvider.getMigrationSet("com.hubrick.lib.elasticsearchmigration.service.impl");
 
         assertThat(migrationSet.getMigrations(), hasSize(3));
         assertThat(migrationSet.getMigrations().stream().map(e -> e.getMigrationMeta().getVersion()).collect(Collectors.toList()), contains(
-                "1",
-                "2",
-                "3"
+                1,
+                2,
+                3
         ));
         assertThat(migrationSet.getMigrations().stream().map(e -> e.getMigrationMeta().getName()).collect(Collectors.toList()), contains(
                 "migration_one",

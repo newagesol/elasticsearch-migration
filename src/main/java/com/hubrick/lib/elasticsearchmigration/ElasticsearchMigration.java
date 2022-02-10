@@ -39,18 +39,10 @@ import java.util.stream.Collectors;
 public class ElasticsearchMigration {
 
     private final ElasticsearchMigrationConfig elasticsearchMigrationConfig;
-    private final MigrationClient migrationClient;
     private final MigrationSetProvider migrationSetProvider;
 
     public ElasticsearchMigration(@NonNull final ElasticsearchMigrationConfig elasticsearchMigrationConfig) {
         this.elasticsearchMigrationConfig = elasticsearchMigrationConfig;
-        this.migrationClient = new DefaultMigrationClient(
-                elasticsearchMigrationConfig.getIdentifier(),
-                createElasticsearchClient(elasticsearchMigrationConfig.getElasticsearchConfig()),
-                elasticsearchMigrationConfig.getIgnorePreviousFailures(),
-                elasticsearchMigrationConfig.getBackoffPeriodInMillis(),
-                elasticsearchMigrationConfig.getRetryCount()
-        );
         this.migrationSetProvider = new YamlDirectoryMigrationSetProvider();
     }
 
@@ -72,8 +64,20 @@ public class ElasticsearchMigration {
 
     public void migrate() {
         log.info("Starting ES schema migration...");
-        final MigrationSet migrationSet = migrationSetProvider.getMigrationSet(elasticsearchMigrationConfig.getBasePackage());
-        migrationClient.applyMigrationSet(migrationSet);
-        log.info("Finished ES schema migration");
+        try (MigrationClient migrationClient = buildMigrationClient()) {
+            final MigrationSet migrationSet = migrationSetProvider.getMigrationSet(elasticsearchMigrationConfig.getBasePackage());
+            migrationClient.applyMigrationSet(migrationSet);
+            log.info("Finished ES schema migration");
+        }
+    }
+
+    private MigrationClient buildMigrationClient() {
+        return new DefaultMigrationClient(
+                elasticsearchMigrationConfig.getIdentifier(),
+                createElasticsearchClient(elasticsearchMigrationConfig.getElasticsearchConfig()),
+                elasticsearchMigrationConfig.getIgnorePreviousFailures(),
+                elasticsearchMigrationConfig.getBackoffPeriodInMillis(),
+                elasticsearchMigrationConfig.getRetryCount()
+        );
     }
 }

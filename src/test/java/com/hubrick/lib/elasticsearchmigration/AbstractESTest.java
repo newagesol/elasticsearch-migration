@@ -91,7 +91,7 @@ public abstract class AbstractESTest {
     }
 
     @Before
-    public final void initES() throws InterruptedException, IOException {
+    public final void initES() throws IOException {
         final Settings settings =
                 Settings.builder()
                         .put("cluster.name", "elasticsearch")

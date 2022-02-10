@@ -9,9 +9,9 @@ Elasticsearch Migration works just like Flyway but using yaml files for describi
 * Elasticsearch 6.x.x (Tested with 6.2.4+. Could work with lower versions since it's using the REST Api)
 ```
 <dependency>
-    <groupId>com.hubrick.lib</groupId>
+    <groupId>com.github.newagesol</groupId>
     <artifactId>elasticsearch-migration</artifactId>
-    <version>1.0.5</version>
+    <version>0.0.4</version>
 </dependency>
 ```
 
